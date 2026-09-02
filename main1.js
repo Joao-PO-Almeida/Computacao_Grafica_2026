@@ -5,183 +5,238 @@ if (!gl) {
     throw new Error("WebGL 2 não é suportado.");
 }
 
-//
-// Definindo cores
-//
+// --------------------------------------------------
+// CORES
+// --------------------------------------------------
 
-const marrom = [0.53, 0.32, 0.16];
-const verde = [0.0, 0.50, 0.0];
-const esmeralda = [0.31, 0.78, 0.41];
-const verdeNeon = [0.17, 1.0, 0.02];
-const rosa = [0.75, 0.11, 0.52];
-const azulCeleste = [0.0, 0.5, 1.0];
-const amarelo = [1.0, 0.87, 0.12];
-const vermelho = [0.93, 0.13, 0.0];
-const laranja = [1.0, 0.65, 0.0];
+const cores = {
+    "0": [1.0, 0.0, 0.0], //vermelho
+    "1": [0.0, 1.0, 0.0], //verde
+    "2": [0.0, 0.0, 1.0], //azul
+    "3": [1.0, 1.0, 0.0], //amarelo
+    "4": [1.0, 0.0, 1.0], //magenta
+    "5": [0.0, 1.0, 1.0], //ciano
+    "6": [1.0, 0.5, 0.0], //laranja
+    "7": [0.5, 0.0, 0.5], //roxo
+    "8": [0.5, 0.5, 0.5], //cinza
+    "9": [0.0, 0.0, 0.5] //azul marinho
+}
 
+// --------------------------------------------------
+// BRESENHAM
+// --------------------------------------------------
 
-//
-//Função auxiliar
-//
+function BrasehamPoints(P1x, P1y, P2x, P2y) {
 
-// Adiciona os vértices, índices e cores de um círculo aos arrays globais/locais
-function addCircle(centroX, centroY, radius, cor, numSides, vertices, circleIndices, circleColors, offsetVertices) {
-    const centroIndex = offsetVertices + vertices.length / 2;
+    const points = [];
 
-    // Vértice central
-    vertices.push(centroX, centroY);
-    circleColors.push(...cor);
+    let dx = P2x - P1x;
+    let dy = P2y - P1y;
 
-    // Vértices da borda
-    for (let i = 0; i <= numSides; i++) {
-        const angle = (i * 2 * Math.PI) / numSides;
-        const x = centroX + radius * Math.cos(angle);
-        const y = centroY + radius * Math.sin(angle);
-        vertices.push(x, y);
-        circleColors.push(...cor);
+    if (dx == 0 || dy==0) {
+
+        let x = P1x;
+        let y = P1y;
+
+        points.push(x, y);
+
+        if(dx==0){ // RETA VERTICAL
+            if (y == P2y) {
+                return new Float32Array(points);
+            }
+            if (y < P2y) {
+                while (y < P2y) {
+                    y++;
+                    points.push(x, y);
+                }
+            } else {
+                while (y > P2y) {
+                    y--;
+                    points.push(x, y);
+                }
+            }
+        } else{ // RETA HORIZONTAL
+            if (x == P2x) {
+                return new Float32Array(points);
+            }
+            if (x < P2x) {
+                while (x < P2x) {
+                    x++;
+                    points.push(x, y);
+                }
+            } else {
+                while (x > P2x) {
+                    x--;
+                    points.push(x, y);
+                }
+            }
+        }
+
+        return new Float32Array(points);
     }
 
-    // Índices indexados corretamente
-    for (let i = 0; i < numSides; i++) {
-        circleIndices.push(
-            centroIndex,
-            centroIndex + 1 + i,
-            centroIndex + 2 + i
+    // TROCA DOS PONTOS
+
+    if ((dx < 0 && dy < 0) || (dx < 0 && dy > 0)) {
+
+        let salvaP2x = P2x;
+        let salvaP2y = P2y;
+
+        P2y = P1y;
+        P2x = P1x;
+
+        P1x = salvaP2x;
+        P1y = salvaP2y;
+
+        dx = P2x - P1x;
+        dy = P2y - P1y;
+    }
+
+
+    // ----------------------------------------------
+    // DECLIVE
+    // ----------------------------------------------
+
+    const m = dy / dx;
+
+    let x = P1x;
+    let y = P1y;
+
+    points.push(x, y);
+
+
+    // ----------------------------------------------
+    // RETA DECRESCENTE
+    // ----------------------------------------------
+
+    if (dx > 0 && dy < 0) {
+        // Menos de 45 graus
+        if (m < 0 && m > -1) {
+
+            const incSup = 2 * (-dy - dx);
+            const incInf = 2 * -dy;
+
+            let p = 2 * -dy - dx;
+
+            while (x < P2x) {
+
+                if (p < 0) {
+                    p += incInf;
+
+                } else {
+                    p += incSup;
+                    y--;
+                }
+                x++;
+                points.push(x, y);
+            }
+
+        }
+
+        // Mais de 45 graus
+
+        else {
+
+            const incSup = 2 * (dx + dy);
+            const incInf = 2 * dx;
+            let p = 2 * dx + dy;
+
+            while (y > P2y) {
+                if (p < 0) {
+                    p += incInf;
+
+                } else {
+                    p += incSup;
+                    x++;
+                }
+                y--;
+                points.push(x, y);
+            }
+        }
+    }
+    // RETA CRESCENTE
+    else {
+        // Menos de 45 graus
+        if (m > 0 && m < 1) {
+
+            const incSup = 2 * (dy - dx);
+            const incInf = 2 * dy;
+
+            let p = 2 * dy - dx;
+
+            while (x < P2x) {
+                if (p < 0) {
+                    p += incInf;
+
+                } else {
+                    p += incSup;
+                    y++;
+                }
+                x++;
+                points.push(x, y);
+            }
+        }
+
+        // Mais de 45 graus
+
+        else {
+
+            let p = 2 * dx - dy;
+            const incSup = 2 * (dx - dy);
+            const incInf = 2 * dx;
+
+            while (y < P2y) {
+
+                if (p < 0) {
+                    p += incInf;
+                } else {
+                    p += incSup;
+                    x++;
+                }
+                y++;
+                points.push(x, y);
+            }
+        }
+    }
+    return new Float32Array(points);
+}
+
+
+// --------------------------------------------------
+// CONVERTER PIXEL → WEBGL
+// --------------------------------------------------
+
+function pixelToWebGL(pixelX, pixelY) {
+
+    const x = (pixelX / canvas.width) * 2 - 1;
+    const y = 1 - (pixelY / canvas.height) * 2;
+    return [x, y];
+}
+
+
+// --------------------------------------------------
+// CONVERTER TODOS OS PONTOS DO BRESENHAM
+// --------------------------------------------------
+
+function pointsToWebGL(points) {
+
+    const converted = [];
+    for (let i = 0; i < points.length; i += 2) {
+        const [x, y] = pixelToWebGL(
+            points[i],
+            points[i + 1]
         );
+        converted.push(x, y);
     }
+    return new Float32Array(converted);
 }
 
 
 // --------------------------------------------------
-// 1. Vertices
+// SHADERS
 // --------------------------------------------------
 
-var circleIndices = []; //ajuda para definir os indices do circulo
-var circleColors = []; //ajuda para definir as cores
-
-function circleVertices() {
-    const vertices = [];
-    const numSides = 30;
-    const offsetInicial = 8; //4 vertices do chão + 4 vertices do caule
-
-    //------------- CIRCULO 1 | Centro da Rosa --------
-    addCircle(0.0, 0.0, 0.3, laranja, numSides, vertices, circleIndices, circleColors, offsetInicial);
-    
-    //------------ Circulo 2 | Sol -----------
-    addCircle(0.7, 0.7, 0.1, amarelo, numSides, vertices, circleIndices, circleColors, offsetInicial);
-    
-    //------------- Petalas -------------
-    const num_petalas=12;
-    const raio_orbita_petalas=0.4;
-    const raio_petalas = 0.14;
-
-    for(i=0; i<num_petalas;i++){
-
-        const angle = i * 2 * Math.PI / num_petalas;
-        const x = raio_orbita_petalas * Math.cos(angle);
-        const y = raio_orbita_petalas * Math.sin(angle);
-
-        addCircle(x,y,raio_petalas, vermelho, numSides, vertices, circleIndices, circleColors, offsetInicial);
-    }
-
-    return new Float32Array(vertices);
-}
-
-var vertices_TFan = circleVertices();
-
-var vertices = new Float32Array([
-    // Vertices do quadrado
-     0.05, -0.4,
-    -0.05, -0.4,
-    -0.05, -0.9,
-     0.05, -0.9,
-
-     // vertices do chão
-     1.0, -0.9,
-    -1.0, -0.9,
-    -1.0, -1.0,
-     1.0, -1.0,
-
-     //vertices circulo
-    ...vertices_TFan
-]);
-
-
-// --------------------------------------------------
-// 2. CORES
-// --------------------------------------------------
-
-var colors = new Float32Array([
-    //Cores dos vértices do quadrado
-    ...marrom,
-    ...marrom,
-    ...marrom,
-    ...marrom,
-
-    //Cores do chão
-    ...verde,
-    ...verde,
-    ...verde,
-    ...verde,
-
-    //Cores do circulo
-    ...circleColors
-])
-
-
-// --------------------------------------------------
-// 3. Indices
-// --------------------------------------------------
-
-
-var indices = new Uint16Array([
-    //Indices dos dois triângulos que formam o quadrado
-    0, 1, 2,
-    0, 2, 3,
-    //Indices do chão
-    4, 5, 6,
-    4, 6, 7,
-    //indices do circulo
-    ...circleIndices
-    
-])
-
-// --------------------------------------------------
-// 2. BUFFERS
-// --------------------------------------------------
-
-var verticesBuffer = gl.createBuffer();
-
-gl.bindBuffer(gl.ARRAY_BUFFER, verticesBuffer);
-
-gl.bufferData(
-    gl.ARRAY_BUFFER,
-    vertices,
-    gl.STATIC_DRAW
-);
-
-var colorsBuffer = gl.createBuffer();
-
-gl.bindBuffer(gl.ARRAY_BUFFER, colorsBuffer);
-
-gl.bufferData(
-    gl.ARRAY_BUFFER,
-    colors,
-    gl.STATIC_DRAW
-);
-
-var indicesBuffer = gl.createBuffer();
-
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
-
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-
-
-// --------------------------------------------------
-// 3. VERTEX SHADER
-// --------------------------------------------------
-
-var vertexShaderSource = `#version 300 es
+const vertexShaderSource = `#version 300 es
 
 in vec2 aPosition;
 in vec3 aColor;
@@ -189,39 +244,37 @@ in vec3 aColor;
 out vec3 vColor;
 
 void main() {
-    gl_Position = vec4(aPosition, 0.0, 1.0);
-    vColor = aColor;
-}
 
+    gl_Position = vec4(aPosition, 0.0, 1.0);
+
+    vColor = aColor;
+
+    gl_PointSize = 3.0;
+}
 `;
 
 
-// --------------------------------------------------
-// 4. FRAGMENT SHADER
-// --------------------------------------------------
-
-var fragmentShaderSource = `#version 300 es
+const fragmentShaderSource = `#version 300 es
 
 precision mediump float;
 
 in vec3 vColor;
-
 out vec4 outColor;
 
 void main() {
+
     outColor = vec4(vColor, 1.0);
 }
-
 `;
 
 
 // --------------------------------------------------
-// 5. COMPILAR SHADERS
+// COMPILAR SHADERS
 // --------------------------------------------------
 
 function createShader(gl, type, source) {
 
-    var shader = gl.createShader(type);
+    const shader = gl.createShader(type);
 
     gl.shaderSource(shader, source);
 
@@ -229,7 +282,7 @@ function createShader(gl, type, source) {
 
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
 
-        var error = gl.getShaderInfoLog(shader);
+        const error = gl.getShaderInfoLog(shader);
 
         gl.deleteShader(shader);
 
@@ -240,13 +293,14 @@ function createShader(gl, type, source) {
 }
 
 
-var vertexShader = createShader(
+const vertexShader = createShader(
     gl,
     gl.VERTEX_SHADER,
     vertexShaderSource
 );
 
-var fragmentShader = createShader(
+
+const fragmentShader = createShader(
     gl,
     gl.FRAGMENT_SHADER,
     fragmentShaderSource
@@ -254,10 +308,10 @@ var fragmentShader = createShader(
 
 
 // --------------------------------------------------
-// 6. CRIAR PROGRAMA
+// CRIAR PROGRAMA
 // --------------------------------------------------
 
-var program = gl.createProgram();
+const program = gl.createProgram();
 
 gl.attachShader(program, vertexShader);
 gl.attachShader(program, fragmentShader);
@@ -273,16 +327,17 @@ if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
 
 
 // --------------------------------------------------
-// 7. LOCAL DOS ATRIBUTOS
+// LOCAL DOS ATRIBUTOS
 // --------------------------------------------------
 
-var positionLocation =
+const positionLocation =
     gl.getAttribLocation(
         program,
         "aPosition"
     );
 
-var colorLocation =
+
+const colorLocation =
     gl.getAttribLocation(
         program,
         "aColor"
@@ -290,57 +345,149 @@ var colorLocation =
 
 
 // --------------------------------------------------
-// 8. CONFIGURAR ATRIBUTOS
+// BUFFERS
 // --------------------------------------------------
 
-gl.bindBuffer(gl.ARRAY_BUFFER, verticesBuffer);
+const verticesBuffer = gl.createBuffer();
 
-gl.enableVertexAttribArray(positionLocation);
-
-gl.vertexAttribPointer(
-    positionLocation,
-    2,
-    gl.FLOAT,
-    false,
-    0,
-    0
-);
-
-gl.bindBuffer(gl.ARRAY_BUFFER, colorsBuffer);
-
-gl.enableVertexAttribArray(colorLocation);
-
-gl.vertexAttribPointer(
-    colorLocation,
-    3,
-    gl.FLOAT,
-    false,
-    0,
-    0
-);
-
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indicesBuffer);
-
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-
-// --------------------------------------------------
-// 9. LIMPAR TELA
-// --------------------------------------------------
-
-gl.clearColor(...azulCeleste, 1.0);
-
-gl.clear(gl.COLOR_BUFFER_BIT);
+const colorsBuffer = gl.createBuffer();
 
 
 // --------------------------------------------------
-// 10. DESENHAR
+// FUNÇÃO PARA DESENHAR OS PONTOS
 // --------------------------------------------------
 
-gl.useProgram(program);
+function drawPoints(points, color) {
 
-gl.drawElements(
-    gl.TRIANGLES,
-    indices.length,
-    gl.UNSIGNED_SHORT,
-    0
-);
+    gl.clearColor( 0.1, 0.1, 0.1, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // ----------------------------------------------
+    // POSIÇÕES
+    // ----------------------------------------------
+
+    gl.bindBuffer(gl.ARRAY_BUFFER,verticesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,points,gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(positionLocation);
+    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+
+    // ----------------------------------------------
+    // CORES
+    // ----------------------------------------------
+
+    const colors = [];
+
+    const numberOfPoints = points.length / 2;
+
+    for (let i = 0; i < numberOfPoints; i++) {
+        colors.push(...color);
+    }
+
+    gl.bindBuffer( gl.ARRAY_BUFFER, colorsBuffer);
+
+    gl.bufferData( gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+    gl.enableVertexAttribArray(colorLocation);
+
+    gl.vertexAttribPointer(
+        colorLocation,
+        3,
+        gl.FLOAT,
+        false,
+        0,
+        0
+    );
+
+
+    // ----------------------------------------------
+    // DESENHAR CADA PONTO
+    // ----------------------------------------------
+    
+    gl.useProgram(program);
+    gl.drawArrays(gl.POINTS, 0, numberOfPoints);
+}
+
+
+// --------------------------------------------------
+// VARIÁVEIS DE ESTADO E TRÊS FUNÇÕES REQUISITADAS
+// --------------------------------------------------
+
+let corAtual = cores["2"]; // Cor azul inicial
+let pontosWebGL = new Float32Array();
+let pontosClique = []; // Armazena cliques temporários
+let modoAtual = "RETA"; // "RETA" ou "TRIANGULO"
+let figuraAtual = { tipo: "RETA", coords: [0, 0, 0, 0] };
+
+// 1. Função de traçar uma linha
+function tracarLinha(P1x, P1y, P2x, P2y) {
+    figuraAtual = { tipo: "RETA", coords: [P1x, P1y, P2x, P2y] };
+    const pontosPixels = BrasehamPoints(P1x, P1y, P2x, P2y);
+    pontosWebGL = pointsToWebGL(pontosPixels);
+    drawPoints(pontosWebGL, corAtual);
+}
+
+// 2. Função de mudar a cor
+function mudarCor(novaCor) {
+    corAtual = novaCor;
+    if (figuraAtual.tipo === "RETA") {
+        tracarLinha(...figuraAtual.coords);
+    } else if (figuraAtual.tipo === "TRIANGULO") {
+        tracarTriangulo(...figuraAtual.coords);
+    }
+}
+
+// 3. Função de traçar triângulos
+function tracarTriangulo(P1x, P1y, P2x, P2y, P3x, P3y) {
+    figuraAtual = { tipo: "TRIANGULO", coords: [P1x, P1y, P2x, P2y, P3x, P3y] };
+    const r1 = BrasehamPoints(P1x, P1y, P2x, P2y);
+    const r2 = BrasehamPoints(P2x, P2y, P3x, P3y);
+    const r3 = BrasehamPoints(P3x, P3y, P1x, P1y);
+    
+    const todosPontosPixels = new Float32Array([...r1, ...r2, ...r3]);
+    pontosWebGL = pointsToWebGL(todosPontosPixels);
+    drawPoints(pontosWebGL, corAtual);
+}
+
+// --------------------------------------------------
+// INICIALIZAÇÃO
+// --------------------------------------------------
+
+// Linha azul de coordenadas (0,0) - (0,0) inicialmente
+tracarLinha(0, 0, 0, 0);
+
+// --------------------------------------------------
+// EVENTOS DE TECLADO E MOUSE
+// --------------------------------------------------
+
+window.addEventListener("keydown", (event) => {
+    if (event.key === "r" || event.key === "R") {
+        modoAtual = "RETA";
+        pontosClique = [];
+    } else if (event.key === "t" || event.key === "T") {
+        modoAtual = "TRIANGULO";
+        pontosClique = [];
+    } else if (cores[event.key]) {
+        mudarCor(cores[event.key]);
+    }
+});
+
+canvas.addEventListener("click", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round(event.clientX - rect.left);
+    const y = Math.round(event.clientY - rect.top);
+
+    pontosClique.push(x, y);
+
+    if (modoAtual === "RETA" && pontosClique.length === 4) {
+        tracarLinha(pontosClique[0], pontosClique[1], pontosClique[2], pontosClique[3]);
+        pontosClique = [];
+    } else if (modoAtual === "TRIANGULO" && pontosClique.length === 6) {
+        tracarTriangulo(
+            pontosClique[0], pontosClique[1],
+            pontosClique[2], pontosClique[3],
+            pontosClique[4], pontosClique[5]
+        );
+        pontosClique = [];
+    }
+});
