@@ -22,6 +22,9 @@ const cores = {
     "9": [0.0, 0.0, 0.5] //azul marinho
 }
 
+//grossura
+let espessura = 3.0;
+
 // --------------------------------------------------
 // BRESENHAM
 // --------------------------------------------------
@@ -243,13 +246,15 @@ in vec3 aColor;
 
 out vec3 vColor;
 
+uniform float uPointSize;
+
 void main() {
 
     gl_Position = vec4(aPosition, 0.0, 1.0);
 
     vColor = aColor;
 
-    gl_PointSize = 3.0;
+    gl_PointSize = uPointSize;
 }
 `;
 
@@ -343,6 +348,12 @@ const colorLocation =
         "aColor"
     );
 
+const pointSizeLocation = 
+    gl.getUniformLocation(
+        program, 
+        "uPointSize"
+    );
+
 
 // --------------------------------------------------
 // BUFFERS
@@ -405,6 +416,7 @@ function drawPoints(points, color) {
     // ----------------------------------------------
     
     gl.useProgram(program);
+    gl.uniform1f(pointSizeLocation, espessura);
     gl.drawArrays(gl.POINTS, 0, numberOfPoints);
 }
 
@@ -469,8 +481,14 @@ window.addEventListener("keydown", (event) => {
         pontosClique = [];
     } else if (cores[event.key]) {
         mudarCor(cores[event.key]);
+    } else if (event.key === "e" || event.key === "E") {
+        espessura++;
+        tracarLinha(...figuraAtual.coords);
+    } else if (event.key === "k" || event.key === "K") {
+        espessura = Math.max(1, espessura - 1);
+        tracarLinha(...figuraAtual.coords);
     }
-});
+    });
 
 canvas.addEventListener("click", (event) => {
     const rect = canvas.getBoundingClientRect();
